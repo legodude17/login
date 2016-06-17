@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+    <script src="jquery-1.11.1.js"></script>
+    <script src="carhartl-jquery-cookie-92b7715/jquery.cookie.js"></script>
+    <script>
+        'use strict';
+        var mode ='login', username;
+        function m(str) {
+            if (str === 'login') {
+                mode = 'login';
+                $('#b').text('Login');
+                $('#t').text('Don\' have an account?');
+                $('#a').text('Register');
+                $('#a').click(function () {
+                    m('register')
+                });
+            } else if (str === 'register') {
+                mode = 'register';
+                $('#b').text('Register');
+                $('#t').text('Slready have an account?');
+                $('#a').text('Login');
+                $('#a').click(function () {
+                    m('login');
+                });
+            }
+        }
+        window.onhashchange = function () {
+            if (window.location.hash === '#register') {
+                $('#a').attr('href', '#login');
+            } else if (location.hash === '#login') {
+                $('#a').attr('href', '#register');
+            }
+        }
+        $(function () {
+            $('#chat').hide();
+            if ($.cookie('user-login-id')) {
+                var id = $.cookie('user-login-id');
+                $.ajax({
+                        method: 'GET',
+                        url: '/login-cookie/' + encodeURIComponent(id),
+                        success: function (obj, str, body) {
+                            console.log(body.responseText);
+                            username = JSON.parse(body.responseText).username;
+                            $('.reg').hide();
+                            $('form').hide();
+                            $('#m').text('Succesfully logged in. Redirecting...').css('color','green').show();
+                            $('#login').hide();
+                            $('#chat').show();
+                            $('.chat').show();
+                        }
+                    }).done(function () {
+                        console.log('Done');
+                    });
+            }
+            $('#m').hide();
+            $('#form').submit(function () {
+                if (mode === 'login') {
+                    $.ajax({
+                        method: 'GET',
+                        url: '/login/' + encodeURIComponent(JSON.stringify({
+                            username: $('#u').val(),
+                            password: $('#p').val()
+                        })),
+                        success: function (obj, str, body) {
+                            console.log('Success', str, 'with', obj);
+                            console.log(body);
+                            body = JSON.parse(body.responseText);
+                            $.cookie('user-login-id', body.id, {expires: 0.03});
+                            username = body.user;
+                            $('.reg').hide();
+                            $('form').hide();
+                            $('#m').text('Succesfully logged in. Redirecting...').css('color','green').show();
+                            $('#login').hide();
+                            $('#chat').show();
+                            $('.chat').show();
+                        },
+                        error: function (obj, str, err) {
+                            console.error('Error', str, 'with', obj, ':', err);
+                        },
+                        statusCode: {
+                            401: function (obj, str, body) {
+                                console.log(obj.responseText);
+                                $('.reg').css('color','red');
+                                $('#m').show().css('color','red').text(obj.responseText);
+                            }
+                            
+                        }
+                    }).done(function () {
+                        console.log('Done');
+                    });
+                } else if (mode === 'register') {
+                    $.ajax({
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            username: $('#u').val(),
+                            password: $('#p').val()
+                        }),
+                        dataType: 'json',
+                        success: function(data){
+                            $('#m').text('Registered, now login in.').css('color','green');
+                        },
+                        error: function(obj, str, err){
+                            console.error('Error', str, 'with', obj, ':', err);
+                        },
+                        processData: false,
+                        type: 'POST',
+                        url: '/login'
+                    }).done(function () {
+                        console.log('Done');
+                    });
+                }
+                return false;
+            });
+        });
+    </script>
+        <form id='form'>
+            <input type="text" id='u' placeholder="Username">
+            <input type="password" id='p' placeholder="Enter your password...">
+            <button id='b'>Login</button>
+        </form>
+        <p id='m'></p>
+        <p class='reg' id="t">Don't have an account?</p>
+        <a class='reg' id="a" href="#register" onclick="m('register')">Register</a>
+    <div id='chat'>
+    <title>Chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      form.chat { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      form.chat input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      form.chat button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+    </style>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+        $(function () {
+            $('.chat').submit(function(){
+                console.log('Submit');
+                socket.emit('chat message', username + ': ' + $('#q').val());
+                $('#q').val('');
+                return false;
+            });
+        });
+        socket.on('chat message', function(msg){
+            $('#messages').append($('<li>').text(msg));
+        });
+</script>
+  <body>
+    <ul id="messages"></ul>
+    <form class='chat'>
+      <input id="q" autocomplete="off" /><button id='s'>Send</button>
+    </form>
+  </body>
+    </div>
+</html>
